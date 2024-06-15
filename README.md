@@ -10,7 +10,7 @@ To install this extension, follow these steps:
 2. Unzip the downloaded file.
 3. In case of Google Chrome, open the Extensions page (chrome://extensions/).
 4. Turn on Developer mode by clicking the toggle switch in the top right corner of the page.
-5. Click the `Load unpacked` button and select the **dist** directory.
+5. Click the `Load unpacked` button and select the **youtube-insight** directory.
 6. YouTube Summary with ChatGPT extension should be installed and active!
 
 ## How to Use

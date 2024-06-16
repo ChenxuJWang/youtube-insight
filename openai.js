@@ -10,8 +10,16 @@ const CHATGPT_MODEL = "gpt-4o";
  * @return {string} The compiled message.
  */
 export const compileMessage = (transcript) => {
-    return `Process and enhance a provided transcript, then extract and link points of interest to Google searches in an HTML format. Only respond with the final HTML paragraph, say nothing else.\n1. Clean Up Transcript: Read the provided transcript, correct any grammatical errors, and add necessary punctuation to ensure clarity and flow.\n2. Extract Points of Interest: Identify key phrases and points of interest such as names, technical terms, key logics and statements.\n3. Map Points to Keywords: Choose a keyword or phrase from the transcript for each identified point of interest.\n4. Generate HTML Response: Convert the cleaned transcript into HTML format and embed hyperlinks for each keyword that search for the point of interest on Google, ensuring links open in a new tab.\n---\n${transcript}`;
-  };
+  return `Process and enhance a provided transcript, then extract and link points of interest to Google searches in an HTML format. Only respond with the final HTML paragraph, say nothing else.
+1. Clean Up Transcript: Read the provided transcript, correct any grammatical errors, and add necessary punctuation to ensure clarity and flow.
+2. Extract Points of Interest: Identify key phrases and points of interest such as names, technical terms, key logics and statements.
+3. Questions you may ask: Generate several follow up questions based on the transcript's content
+4. Map Points to Keywords: Choose a keyword or phrase from the transcript for each identified point of interest.
+5. Generate HTML Response: Convert the cleaned transcript into HTML format and embed hyperlinks for each keyword that search for the point of interest on Google, ensuring links open in a new tab.
+6. Append questions: Add a separated section of the generated questions called [You may ask] to the end of the HTML transcript with embed hyperlink for each whole question sentence
+---
+${transcript}`;
+};
 
 /**
  * Function to send a message to the ChatGPT API and return the response.

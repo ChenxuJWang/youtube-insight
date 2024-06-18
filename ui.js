@@ -4,16 +4,22 @@
 
 
 import { postChatGPTMessage, compileMessage } from './openai.js';
+
+let existingOverlay = null;
+
 /**
- * Displays a loading overlay with the provided time and link information.
- * @param {string} timeString The formatted time string.
- * @param {string} linkString The video link string.
+ * Removes the overlay if it exists.
  */
-export const displayLoadingOverlay = (timeString, linkString) => {
-    // Remove existing overlay if it exists
-    removeOverlay();
+export const removeOverlay = () => {
+    //const existingOverlay = document.getElementById('custom-overlay');
+    if (existingOverlay) {
+    existingOverlay.remove();
+    console.log("Overlay removed.");
+    existingOverlay = null;
+    }
+};
 
-
+const appendOverlay = () => {
     const overlay = document.createElement('div');
     overlay.id = 'custom-overlay';
     overlay.style.background = 'linear-gradient(180deg, rgba(255, 255, 255, 0) 22%, #F4F3E7 100%)';
@@ -24,10 +30,69 @@ export const displayLoadingOverlay = (timeString, linkString) => {
     overlay.style.justifyContent = 'center';
     overlay.style.alignItems = 'center';
     overlay.style.fontSize = '16px';
-    overlay.style.padding = '10px';
+    overlay.style.padding = '16px';
     overlay.style.borderRadius = '10px';
 
+    if (document.fullscreenElement) {
+        // Fullscreen mode
+        const playerContent = document.querySelector('.ytp-player-content.ytp-iv-player-content[data-layer="4"]');
+        if (playerContent) {
+            overlay.style.position = 'absolute';
+            overlay.style.width = 'calc(100% - 120px)'; // Full width with 90px padding on both sides
+            overlay.style.height = 'auto';
+            overlay.style.zIndex = '10000';
+            overlay.style.fontSize = '20px'; // Increase text size in fullscreen mode
+            overlay.style.color = '#F4F3E7';
+            overlay.style.bottom = '0';
+            overlay.style.left = '0';
+            overlay.style.background = 'linear-gradient(180deg, rgba(217, 217, 217, 0) 0%, rgba(21, 28, 19, 0.90) 100%)';
+            overlay.style.padding = '60px';
+            document.body.appendChild(overlay);
+        }
+    } else {
+        // Window mode
+        overlay.style.position = 'relative';
+        overlay.style.width = 'calc(100% - 48px)';
+        overlay.style.height = 'auto';
+        overlay.style.top = '';
+        overlay.style.left = '';
+        overlay.style.zIndex = '';
+        overlay.style.bottom = ''; // Reset bottom offset in window mode
+        overlay.style.fontSize = '16px'; // Reset text size in window mode
+        overlay.style.color = '#151C13'; // Reset text color in window modez
+        overlay.style.padding = '24px';
+        overlay.style.background = '#F4F3E7';
+
+        const secondary = document.getElementById('secondary');
+        if (secondary) {
+            const secondaryInner = secondary.querySelector('#secondary-inner');
+            if (secondaryInner) {
+                secondaryInner.insertBefore(overlay, secondaryInner.firstChild);
+            }
+        }
+    }
+    existingOverlay = overlay;
+
+    existingOverlay.appendChild(createCloseButton());
+};
+
+/**
+ * Handler for fullscreen changes.
+ */
+const fullscreenChangeHandler = () => {
+    // Ensure existingOverlay is still a valid DOM element and then assign properties
+    if (existingOverlay) {
+        const transcript = existingOverlay.querySelector('div[data-transcript]');
+        removeOverlay();
+        appendOverlay();
+        existingOverlay.appendChild(transcript);
+    }
+};
+
+// Function to create and configure the close button
+const createCloseButton = () => {
     const closeButton = document.createElement('button');
+    console.log("Creating close button...");
     closeButton.textContent = 'Close';
     closeButton.style.position = 'absolute';
     closeButton.style.top = '10px';
@@ -39,65 +104,32 @@ export const displayLoadingOverlay = (timeString, linkString) => {
     closeButton.style.cursor = 'pointer';
     closeButton.style.borderRadius = '5px';
 
+    // Attaching the event listener to the close button
     closeButton.addEventListener('click', () => {
-        if (overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-        }
+        removeOverlay();
         document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+        console.log("Event listener removed...");
     });
-    
-    overlay.appendChild(closeButton);
 
-    const appendOverlay = () => {
-    if (document.fullscreenElement) {
-        // Fullscreen mode
-        const chromeBottom = document.querySelector('.ytp-chrome-bottom');
-        if (chromeBottom) {
-            overlay.style.position = 'absolute';
-            overlay.style.width = '90%';
-            overlay.style.height = '20%';
-            overlay.style.zIndex = '10000';
-            overlay.style.fontSize = '20px'; // Increase text size in fullscreen mode
-            overlay.style.left = chromeBottom.style.left;
-            overlay.style.bottom = `calc(${chromeBottom.offsetHeight}px + 20px)`;
-            document.body.appendChild(overlay);
-        }
-    } else {
-        // Window mode
-        overlay.style.position = 'relative';
-        overlay.style.width = '100%';
-        overlay.style.height = 'auto';
-        overlay.style.top = '';
-        overlay.style.left = '';
-        overlay.style.zIndex = '';
-        overlay.style.bottom = ''; // Reset bottom offset in window mode
-        overlay.style.fontSize = '16px'; // Reset text size in window mode
+    return closeButton;
+};
 
-        const secondary = document.getElementById('secondary');
-        if (secondary) {
-        const secondaryInner = secondary.querySelector('#secondary-inner');
-        if (secondaryInner) {
-            secondaryInner.insertBefore(overlay, secondaryInner.firstChild);
-        }
-        }
-    }
-    };
+/**
+ * Displays a loading overlay with the provided time and link information.
+ * @param {string} timeString The formatted time string.
+ * @param {string} linkString The video link string.
+ */
+export const displayLoadingOverlay = (timeString, linkString) => {
+    // Remove existing overlay if it exists
+    removeOverlay();
     
     // Initial append
     appendOverlay();
-
+    console.log("Loading raw transcript...");
     // Display initial loading message
     const loadingMessage = document.createElement('div');
     loadingMessage.innerText = 'Loading...';
-    overlay.appendChild(loadingMessage);
-
-    // Define fullscreenChangeHandler
-    const fullscreenChangeHandler = () => {
-        if (overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-        }
-        appendOverlay();
-    };
+    existingOverlay.appendChild(loadingMessage);
 
     // Event listener for fullscreen change
     document.addEventListener('fullscreenchange', fullscreenChangeHandler);
@@ -110,7 +142,7 @@ export const displayLoadingOverlay = (timeString, linkString) => {
  * @param {string} transcript The transcript text.
  */
 export const updateOverlayWithTranscript = (timeString, linkString, transcript) => {
-    const existingOverlay = document.getElementById('custom-overlay');
+    //const existingOverlay = document.getElementById('custom-overlay');
     if (!existingOverlay) {
         console.error("Overlay not found for updating");
       return;
@@ -119,30 +151,13 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
     // Clear the loading message
     existingOverlay.innerText = '';
 
-    // Add the close button again
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
-    closeButton.style.right = '10px';
-    closeButton.style.backgroundColor = '#F7944C';
-    closeButton.style.color = '#FFFFFF';
-    closeButton.style.border = 'none';
-    closeButton.style.padding = '5px 10px';
-    closeButton.style.cursor = 'pointer';
-    closeButton.style.borderRadius = '5px';
-
-    closeButton.addEventListener('click', () => {
-        if (existingOverlay.parentNode) {
-        existingOverlay.parentNode.removeChild(existingOverlay);
-        }
-        document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
-    });
-
+    const closeButton = createCloseButton();
     existingOverlay.appendChild(closeButton);
+
 
     // Display transcript when available
     const transcriptDiv = document.createElement('div');
+    transcriptDiv.setAttribute('data-transcript', ''); 
     transcriptDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and wrap text
     transcriptDiv.style.overflowWrap = 'break-word'; // Break long words
     transcriptDiv.style.maxHeight = '150px'; // Set max height for the transcript area
@@ -161,12 +176,12 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
         const chatGPTResponse = await postChatGPTMessage(message, openAIKey);
         if (chatGPTResponse) {
             console.log("Points of interest fetched from OpenAI");
-            transcriptDiv.innerHTML = ``;
+            transcriptDiv.remove();
 
             // Display points of interest
             const pointsOfInterest = document.createElement('div');
+            pointsOfInterest.setAttribute('data-transcript', ''); 
             pointsOfInterest.style.marginTop = '10px';
-            pointsOfInterest.style.color = '#151C13';
             pointsOfInterest.innerHTML = chatGPTResponse;  // Directly set the innerHTML to the response HTML
             existingOverlay.appendChild(pointsOfInterest);
 
@@ -192,12 +207,5 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
     });
   };
 
-/**
- * Removes the overlay if it exists.
- */
-    export const removeOverlay = () => {
-    const existingOverlay = document.getElementById('custom-overlay');
-    if (existingOverlay) {
-    existingOverlay.remove();
-    }
-};
+// Updating the handler to attach to a specific element or conditionally apply based on page structure
+document.addEventListener('fullscreenchange', fullscreenChangeHandler);

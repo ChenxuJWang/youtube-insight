@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Define constants
 const CHATGPT_END_POINT = "https://api.openai.com/v1/chat/completions";
-const CHATGPT_MODEL = "gpt-4o";
+const CHATGPT_MODEL = "gpt-3.5-turbo";
 
 /**
  * Compiles the prompt and input data into a message for the ChatGPT API.
@@ -10,13 +10,12 @@ const CHATGPT_MODEL = "gpt-4o";
  * @return {string} The compiled message.
  */
 export const compileMessage = (transcript) => {
-  return `Process and enhance a provided transcript, then extract and link points of interest to Google searches in an HTML format. Only respond with the final HTML paragraph, say nothing else.
+  return `Process and enhance a provided transcript, then extract points of interest and generate follow-up questions. 
 1. Clean Up Transcript: Read the provided transcript, correct any grammatical errors, and add necessary punctuation to ensure clarity and flow.
 2. Extract Points of Interest: Identify key phrases and points of interest such as names, technical terms, key logics and statements.
 3. Questions you may ask: Generate several follow up questions based on the transcript's content
 4. Map Points to Keywords: Choose a keyword or phrase from the transcript for each identified point of interest.
-5. Generate HTML Response: Convert the cleaned transcript into HTML format and embed hyperlinks for each keyword that search for the point of interest on Google, ensuring links open in a new tab.
-6. Append questions: Add a separated section of the generated questions called [You may ask] to the end of the HTML transcript with embed hyperlink for each whole question sentence
+5. Generate Response: Compile the cleaned transcript, keywords pair, and questions to a JSON response
 ---
 ${transcript}`;
 };
@@ -36,12 +35,13 @@ export const postChatGPTMessage = async (message, openAIKey) => {
   };
 
   // Create the message object to send to the API
+  const systemMessage = { role: "system", content:`Provide output in valid JSON. The data schema should be like this: { \"transcript\": {}, \"keywords\": { \"\": { \"text\": {}, \"point_of_interest\": {} } }, \"questions\": [] }`};
   const userMessage = { role: "user", content: message };
 
   // Define the data to send in the request body
   const chatGPTData = {
     model: CHATGPT_MODEL,
-    messages: [userMessage],
+    messages: [systemMessage, userMessage],
   };
 
   try {

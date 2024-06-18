@@ -47,6 +47,7 @@ const appendOverlay = () => {
             overlay.style.left = '0';
             overlay.style.background = 'linear-gradient(180deg, rgba(217, 217, 217, 0) 0%, rgba(21, 28, 19, 0.90) 100%)';
             overlay.style.padding = '60px';
+            overlay.style.gap = '20px'; // Add gap between elements
             document.body.appendChild(overlay);
         }
     } else {
@@ -62,6 +63,7 @@ const appendOverlay = () => {
         overlay.style.color = '#151C13'; // Reset text color in window modez
         overlay.style.padding = '24px';
         overlay.style.background = '#F4F3E7';
+        overlay.style.gap = '10px'; // Add gap between elements
 
         const secondary = document.getElementById('secondary');
         if (secondary) {
@@ -83,8 +85,22 @@ const fullscreenChangeHandler = () => {
     // Ensure existingOverlay is still a valid DOM element and then assign properties
     if (existingOverlay) {
         const transcript = existingOverlay.querySelector('div[data-transcript]');
+        const questionsDiv = existingOverlay.querySelector('div[data-questions]');
         removeOverlay();
         appendOverlay();
+        if (document.fullscreenElement) {
+            // Fullscreen mode
+            questionsDiv.querySelectorAll('div[data-question]').forEach(div => {
+                div.style.width = 'calc(33% - 64px)';
+              });
+        } else {
+             // Window mode
+             questionsDiv.querySelectorAll('div[data-question]').forEach(div => {
+                div.style.width = 'calc(100% - 64px)';
+              });
+            // Remove loading animation class
+            // existingOverlay.classList.remove('loading-border');
+        }
         existingOverlay.appendChild(transcript);
     }
 };
@@ -130,6 +146,7 @@ export const displayLoadingOverlay = (timeString, linkString) => {
     const loadingMessage = document.createElement('div');
     loadingMessage.innerText = 'Loading...';
     existingOverlay.appendChild(loadingMessage);
+    existingOverlay.classList.add('loading-border'); // Add loading animation class
 
     // Event listener for fullscreen change
     document.addEventListener('fullscreenchange', fullscreenChangeHandler);
@@ -176,20 +193,50 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
         const chatGPTResponse = await postChatGPTMessage(message, openAIKey);
         if (chatGPTResponse) {
             console.log("Points of interest fetched from OpenAI");
+            const responseObj = JSON.parse(chatGPTResponse);
+            // Remove loading animation class
+            existingOverlay.classList.remove('loading-border');
             transcriptDiv.remove();
 
-            // Display points of interest
+            // Update the overlay with the processed transcript
+            const processedTranscript = processTranscript(responseObj.transcript, responseObj.keywords);
             const pointsOfInterest = document.createElement('div');
             pointsOfInterest.setAttribute('data-transcript', ''); 
-            pointsOfInterest.style.marginTop = '10px';
-            pointsOfInterest.innerHTML = chatGPTResponse;  // Directly set the innerHTML to the response HTML
-            existingOverlay.appendChild(pointsOfInterest);
-
+            pointsOfInterest.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and wrap text
+            pointsOfInterest.style.overflowWrap = 'break-word'; // Break long words
+            // pointsOfInterest.style.maxHeight = '150px'; // Set max height for the transcript area
+            pointsOfInterest.style.overflowY = 'auto'; // Add vertical scrollbar if content overflows
+            pointsOfInterest.innerHTML = `${processedTranscript}`;
+            
             // Update hyperlink colors
-            const links = existingOverlay.querySelectorAll('a');
+            const links = pointsOfInterest.querySelectorAll('a');
             links.forEach(link => {
                 link.style.color = '#F7944C';
+                        });
+            
+            existingOverlay.appendChild(pointsOfInterest);
+
+            // Display questions as clickable objects
+            const questionsDiv = document.createElement('div');
+            questionsDiv.innerHTML = '<h3>You may want to ask:</h3>';
+
+            questionsDiv.setAttribute('data-questions', ''); // Mark for fullscreenChangeHandler
+            questionsDiv.style.display = document.fullscreenElement ? 'flex' : 'block'; // Flex for fullscreen, block for window mode
+            questionsDiv.style.flexWrap = 'wrap'; // Wrap questions in fullscreen mode
+            questionsDiv.style.gap = '10px'; // Add gap between questions
+            
+            responseObj.questions.forEach(question => {
+                const questionDiv = document.createElement('div');
+                questionDiv.setAttribute('data-question', ''); // Mark for fullscreenChangeHandler
+                questionDiv.style.cssText = `width: ${document.fullscreenElement ? 'calc(33% - 64px)' : 'calc(100% - 64px)'}; height: auto; padding: 6px 12px; background: #F6EED9; border-radius: 10px; display: inline-flex; justify-content: flex-start; align-items: flex-start; gap: 10px;`;
+                questionDiv.innerHTML = `<div style="flex: 1 1 0; color: #BAB098; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">${question}</div>`;
+                questionDiv.addEventListener('click', () => {
+                    console.log('Question clicked:', question);
+                });
+                questionsDiv.appendChild(questionDiv);
             });
+            pointsOfInterest.appendChild(questionsDiv);
+
         } else {
             const errorMessage = document.createElement('div');
             errorMessage.style.marginTop = '10px';
@@ -207,5 +254,55 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
     });
   };
 
+/**
+ * Processes the transcript by converting points of interest to Google search links.
+ * @param {string} transcript The transcript text.
+ * @param {object} keywords The keywords object containing points of interest.
+ * @returns {string} The processed transcript with embedded Google search links.
+ */
+const processTranscript = (transcript, keywords) => {
+    if (typeof transcript !== 'string') {
+        console.error('Transcript is not a string:', transcript);
+        return '';
+      }
+
+    let processedTranscript = transcript;
+    for (const [key, value] of Object.entries(keywords)) {
+        if (typeof value.text !== 'string') {
+            console.error('Keyword text is not a string:', value.text);
+            continue;
+          }
+      const searchLink = `<a href="https://www.google.com/search?q=${encodeURIComponent(value.point_of_interest)}" target="_blank">${value.text}</a>`;
+      try {
+        processedTranscript = processedTranscript.replace(new RegExp(value.text, 'g'), searchLink);
+      } catch (error) {
+        console.error('Error replacing text:', value.text, error);
+      }
+    }
+    return processedTranscript;
+  };
+
 // Updating the handler to attach to a specific element or conditionally apply based on page structure
 document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+
+// Add CSS for loading animation
+const loadingStyle = document.createElement('style');
+loadingStyle.innerHTML = `
+    .loading-border {
+        border: 4px solid transparent;
+        border-radius: 10px;
+        border-image: linear-gradient(to right, #F7944C, #F4F3E7, #F7944C) 1;
+        border-image-slice: 1;
+        animation: border-animation 2s linear infinite;
+    }
+
+    @keyframes border-animation {
+        0% {
+            border-image-source: linear-gradient(to right, #F7944C, #F4F3E7, #F7944C);
+        }
+        100% {
+            border-image-source: linear-gradient(to right, #F4F3E7, #F7944C, #F4F3E7);
+        }
+    }
+`;
+document.head.appendChild(loadingStyle);

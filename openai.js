@@ -21,6 +21,16 @@ ${transcript}`;
 };
 
 /**
+ * Compiles the question and the transcript for sending to ChatGPT.
+ * @param {string} question The clicked question.
+ * @param {string} transcript The related transcript text.
+ * @return {string} The compiled message.
+ */
+export const compileQuestionWithTranscript = (question, transcript) => {
+  return `Explain to me in one sentence. Question: ${question}\nContext Video Transcript: ${transcript}`;
+};
+
+/**
  * Function to send a message to the ChatGPT API and return the response.
  * @param {string} message The message to send to the API.
  * @param {string} openAIKey The API key for authentication.

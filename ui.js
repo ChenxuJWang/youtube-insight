@@ -3,7 +3,8 @@
  */
 
 
-import { postChatGPTMessage, compileMessage } from './openai.js';
+import { postChatGPTMessage, compileMessage, compileQuestionWithTranscript } from './openai.js';
+import { getCachedTranscript } from './transcript.js';
 
 let existingOverlay = null;
 
@@ -234,9 +235,7 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
                 questionDiv.setAttribute('data-question', ''); // Mark for fullscreenChangeHandler
                 questionDiv.style.cssText = `width: ${document.fullscreenElement ? 'calc(33% - 64px)' : 'calc(100% - 64px)'}; height: auto; padding: 6px 12px; background: #F6EED9; border-radius: 10px; display: inline-flex; justify-content: flex-start; align-items: flex-start; gap: 10px;`;
                 questionDiv.innerHTML = `<div style="flex: 1 1 0; color: #BAB098; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">${question}</div>`;
-                questionDiv.addEventListener('click', () => {
-                    console.log('Question clicked:', question);
-                });
+                questionDiv.addEventListener('click', questionClickHandler);
                 // Add the processed transcript with a fade-in effect
                 fadeInAndAppend(questionDiv, questionsDiv);
             });
@@ -287,6 +286,95 @@ const processTranscript = (transcript, keywords) => {
     }
     return processedTranscript;
   };
+
+/**
+ * Event handler for question click.
+ * @param {Event} event The click event.
+ */
+const questionClickHandler = async (event) => {
+    const clickedQuestionDiv = event.currentTarget;
+    const questionText = clickedQuestionDiv.innerText;
+  
+    // Fade out other questions
+    const allQuestions = clickedQuestionDiv.parentNode.querySelectorAll('div[data-question]');
+    allQuestions.forEach((questionDiv) => {
+        if (questionDiv !== clickedQuestionDiv) {
+            fadeOutAndRemove(questionDiv);
+        }
+    });
+  
+    const transcript = getCachedTranscript(document.getElementsByClassName('video-stream')[0].currentTime);
+    const compiledMessage = compileQuestionWithTranscript(questionText, transcript);
+    console.log(compiledMessage);
+    // Fetch OpenAI API key from storage
+    chrome.storage.sync.get(['openAIKey'], async (result) => {
+        const openAIKey = result.openAIKey;
+        if (openAIKey) {
+            streamAnswerToDisplay(existingOverlay, compiledMessage, openAIKey);
+        }
+    });
+  };
+
+/**
+ * Streams the answer from ChatGPT and displays it.
+ * @param {HTMLElement} parent The parent element to display the answer in.
+ * @param {string} message The message to send to ChatGPT.
+ * @param {string} openAIKey The OpenAI API key.
+ */
+const streamAnswerToDisplay = async (parent, message, openAIKey) => {
+    const API_URL = "https://api.openai.com/v1/chat/completions";
+    const resultText = document.createElement('div');
+    resultText.style.whiteSpace = 'pre-wrap';
+    resultText.style.overflowWrap = 'break-word';
+    fadeInAndAppend(resultText, parent);
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${openAIKey}`,
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [{ role: "user", content: message }],
+                stream: true, // For streaming responses
+            }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+            const parsedLines = lines
+                .map((line) => line.replace(/^data: /, "").trim())
+                .filter((line) => line !== "" && line !== "[DONE]")
+                .map((line) => JSON.parse(line));
+
+            for (const parsedLine of parsedLines) {
+                const { choices } = parsedLine;
+                const { delta } = choices[0];
+                const { content } = delta;
+                if (content) {
+                    resultText.innerText += content;
+                }
+            }
+        }
+    } catch (error) {
+        if (signal.aborted) {
+            resultText.innerText = "Request aborted.";
+        } else {
+            console.error("Error:", error);
+            resultText.innerText = "Error occurred while generating.";
+        }
+    }
+};
 
 /**
  * Animates the display of the transcript word by word.

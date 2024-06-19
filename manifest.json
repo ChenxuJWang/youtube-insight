@@ -1,6 +1,6 @@
 {
   "name": "YouTube Insight",
-  "version": "0.1.83",
+  "version": "0.1.85",
   "description": "Pause YouTube video and log timestamp with video link",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://*.youtube.com/*"],

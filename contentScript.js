@@ -4,7 +4,7 @@
  */
 
 import { displayLoadingOverlay, updateOverlayWithTranscript, removeOverlay } from './ui.js';
-import { fetchTranscript } from './transcript.js';
+import { fetchTranscript, getCachedTranscript } from './transcript.js';
 
 let videoId = null;
 
@@ -40,7 +40,7 @@ let videoId = null;
     // Display the overlay immediately with a loading message
     displayLoadingOverlay(timeString, linkString);
     
-    const transcript = await fetchTranscript(videoId, currentTime);
+    const transcript = getCachedTranscript(currentTime) || await fetchTranscript(videoId, currentTime);
     console.log("Transcript:", transcript);
     
     updateOverlayWithTranscript(timeString, linkString, transcript);
@@ -67,13 +67,15 @@ let videoId = null;
     }
   };
 
-  // Monitor for URL changes to remove overlay when playing a new video
+  // Monitor for URL changes to remove overlay and fetch transcript when playing a new video
   const observer = new MutationObserver(() => {
     const videoLink = window.location.href;
     const newVideoId = new URLSearchParams(new URL(videoLink).search).get("v");
 
     if (videoId !== newVideoId) {
       removeOverlay();
+      const initTime = youtubePlayer.currentTime;
+      fetchTranscript(videoId, initTime);
     }
   });
 

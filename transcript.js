@@ -2,6 +2,8 @@
  * @fileoverview Provides functions to fetch and process YouTube video transcripts.
  */
 
+let cachedTranscript = null;
+
 /**
  * Fetches the transcript for a given YouTube video and filters it to a 20-second window around the current time.
  * @param {string} videoId The ID of the YouTube video.
@@ -13,6 +15,7 @@ export const fetchTranscript = async (videoId, currentTime) => {
       const langOptions = await getLangOptionsWithLink(videoId);
       if (langOptions && langOptions.length > 0) {
         const transcript = await getTranscript(langOptions[0], currentTime);
+        console.log("Transcript cached.");
         return transcript;
       }
       return "No transcript available.";
@@ -20,6 +23,36 @@ export const fetchTranscript = async (videoId, currentTime) => {
       console.error("Error fetching transcript:", error);
       return "Error fetching transcript.";
     }
+};
+
+/**
+ * Retrieves the formatted transcript for a given time from the cached data.
+ * @param {number} currentTime The current time of the video in seconds.
+ * @return {string|null} The formatted transcript around the current time, or null if no data is available.
+ */
+export const getCachedTranscript = (currentTime) => {
+    if (!cachedTranscript) {
+        return null;
+    }
+
+    if (!Array.isArray(cachedTranscript)) {
+        console.error("Cached transcript is not an array:", cachedTranscript);
+        return null;  // Ensure it's an array before proceeding
+    }
+
+    const windowStart = Math.max(0, currentTime - 10);
+    const windowEnd = currentTime + 10;
+    const relevantTranscript = cachedTranscript.filter(item => {
+        const startTime = parseFloat(item.start);
+        return startTime >= windowStart && startTime <= windowEnd;
+    });
+
+    if (relevantTranscript.length === 0) {
+        return null;
+    }
+
+    const formattedTranscript = relevantTranscript.map((item) => item.text).join(' ');
+    return formattedTranscript;
 };
 
 /**
@@ -59,15 +92,13 @@ const getLangOptionsWithLink = async (videoId) => {
  */
 const getTranscript = async (langOption, currentTime) => {
     const rawTranscript = await getRawTranscript(langOption.link);
+    cachedTranscript = rawTranscript;
     const relevantTranscript = rawTranscript.filter(item => {
         const startTime = parseFloat(item.start);
-        return startTime >= currentTime - 10 && startTime <= currentTime + 10;
+        // Ensure the start time is not less than 0 when adjusting for the current time
+        const adjustedStartTime = Math.max(0, currentTime - 10);
+        return startTime >= adjustedStartTime && startTime <= currentTime + 10;
     });
-    // This function return transcript with timestamp and duration for each line and is now deprecated
-    // const formattedTranscript = relevantTranscript.map((item) => {
-    //     const timestamp = getTime(parseFloat(item.start));
-    //     return `[${timestamp}_${item.duration}] ${item.text}`;
-    // }).join('\n');
     
     const formattedTranscript = relevantTranscript.map((item) => {
         return item.text;

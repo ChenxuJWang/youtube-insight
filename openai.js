@@ -35,7 +35,7 @@ export const postChatGPTMessage = async (message, openAIKey) => {
   };
 
   // Create the message object to send to the API
-  const systemMessage = { role: "system", content:`Provide output in valid JSON. The data schema should be like this: { \"transcript\": {}, \"keywords\": { \"\": { \"text\": {}, \"point_of_interest\": {} } }, \"questions\": [] }`};
+  const systemMessage = { role: "system", content:`Provide output in valid JSON. The data schema should be like this: { \"transcript\": {transcript string}, \"keywords\": { \"\": { \"text\": {}, \"point_of_interest\": {} } }, \"questions\": [] }`};
   const userMessage = { role: "user", content: message };
 
   // Define the data to send in the request body

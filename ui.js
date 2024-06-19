@@ -179,8 +179,9 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
     transcriptDiv.style.overflowWrap = 'break-word'; // Break long words
     transcriptDiv.style.maxHeight = '150px'; // Set max height for the transcript area
     transcriptDiv.style.overflowY = 'auto'; // Add vertical scrollbar if content overflows
-    transcriptDiv.innerHTML = `${transcript}`;
+    //transcriptDiv.innerHTML = `${transcript}`;
     existingOverlay.appendChild(transcriptDiv);
+    animateTranscript(transcriptDiv, transcript);
     console.log("Transcript added to overlay");
  
     // Fetch OpenAI API key from storage
@@ -196,15 +197,17 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
             const responseObj = JSON.parse(chatGPTResponse);
             // Remove loading animation class
             existingOverlay.classList.remove('loading-border');
-            transcriptDiv.remove();
-
+            // Remove the raw transcript with a fade-out effect
+            fadeOutAndRemove(transcriptDiv);
+            
+            console.log(responseObj);
+            
             // Update the overlay with the processed transcript
             const processedTranscript = processTranscript(responseObj.transcript, responseObj.keywords);
             const pointsOfInterest = document.createElement('div');
             pointsOfInterest.setAttribute('data-transcript', ''); 
             pointsOfInterest.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and wrap text
             pointsOfInterest.style.overflowWrap = 'break-word'; // Break long words
-            // pointsOfInterest.style.maxHeight = '150px'; // Set max height for the transcript area
             pointsOfInterest.style.overflowY = 'auto'; // Add vertical scrollbar if content overflows
             pointsOfInterest.innerHTML = `${processedTranscript}`;
             
@@ -214,7 +217,8 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
                 link.style.color = '#F7944C';
                         });
             
-            existingOverlay.appendChild(pointsOfInterest);
+            // Add the processed transcript with a fade-in effect
+            fadeInAndAppend(pointsOfInterest, existingOverlay);
 
             // Display questions as clickable objects
             const questionsDiv = document.createElement('div');
@@ -233,9 +237,11 @@ export const updateOverlayWithTranscript = (timeString, linkString, transcript) 
                 questionDiv.addEventListener('click', () => {
                     console.log('Question clicked:', question);
                 });
-                questionsDiv.appendChild(questionDiv);
+                // Add the processed transcript with a fade-in effect
+                fadeInAndAppend(questionDiv, questionsDiv);
             });
-            pointsOfInterest.appendChild(questionsDiv);
+            // Add the processed transcript with a fade-in effect
+            fadeInAndAppend(questionsDiv, pointsOfInterest);
 
         } else {
             const errorMessage = document.createElement('div');
@@ -282,8 +288,62 @@ const processTranscript = (transcript, keywords) => {
     return processedTranscript;
   };
 
+/**
+ * Animates the display of the transcript word by word.
+ * @param {HTMLElement} element The element to display the transcript in.
+ * @param {string} text The transcript text to display.
+ */
+const animateTranscript = (element, text) => {
+    const words = text.split(' ');
+    let index = 0;
+    const interval = setInterval(() => {
+        if (index < words.length) {
+            const wordSpan = document.createElement('span');
+            wordSpan.style.opacity = '0';
+            wordSpan.style.transition = 'opacity 0.4s ease';
+            wordSpan.textContent = words[index] + ' ';
+            element.appendChild(wordSpan);
+            
+            // Trigger the transition
+            setTimeout(() => {
+                wordSpan.style.opacity = '1';
+            }, 10); // Small delay to ensure the transition occurs
+            
+            index++;
+        } else {
+            clearInterval(interval);
+        }
+    }, (4000 / words.length)); // Adjust speed as necessary
+};
+
 // Updating the handler to attach to a specific element or conditionally apply based on page structure
 document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+
+/**
+ * Smoothly removes an element from the DOM by fading it out.
+ * @param {HTMLElement} element The element to remove.
+ */
+const fadeOutAndRemove = (element) => {
+    element.style.transition = 'opacity 0.5s';
+    element.style.opacity = '0';
+    setTimeout(() => {
+        element.remove();
+    }, 500); // Wait for the transition to complete
+};
+
+/**
+ * Smoothly adds an element to the DOM by fading it in.
+ * @param {HTMLElement} element The element to add.
+ * @param {HTMLElement} parent The parent element to add to.
+ */
+const fadeInAndAppend = (element, parent) => {
+    element.style.opacity = '0';
+    parent.appendChild(element);
+    requestAnimationFrame(() => {
+        element.style.transition = 'opacity 0.5s';
+        element.style.opacity = '1';
+    });
+};
 
 // Add CSS for loading animation
 const loadingStyle = document.createElement('style');
